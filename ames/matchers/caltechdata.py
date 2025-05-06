@@ -1,5 +1,5 @@
 import os, json
-from caltechdata_api import caltechdata_edit
+from caltechdata_api import caltechdata_edit, get_metadata
 from ames import codemeta_to_datacite
 from ames.harvesters import get_records
 from progressbar import progressbar
@@ -10,6 +10,65 @@ import pandas as pd
 import numpy as np
 import requests
 
+
+def edit_subject(record, token, correction_subjects, test=True):
+
+    if test:
+        rurl = "https://data.caltechlibrary.dev/api/records/" + record
+    else:
+        rurl = "https://data.caltechlibrary.dev/api/records/" + record
+
+    headers = {
+        "Authorization": "Bearer %s" % token,
+        "Content-type": "application/json",
+    }
+
+    data = requests.get(rurl, headers=headers).json()
+
+    json_string = json.dumps(data["metadata"], indent=4)
+
+
+    metadata = get_metadata(
+    record,
+    production=False,
+    validate=True,
+    emails=False,
+    schema="43",
+    token=False,
+    authors=False,
+)
+    print(metadata["subjects"])
+
+    if metadata["subjects"] :
+        for i in metadata["subjects"]:
+          for each_correct_subject in correction_subjects.keys():
+            if i["subject"] == each_correct_subject and "id" not in i:
+                i["id"] = correction_subjects[each_correct_subject]
+                i["subject"] = each_correct_subject
+
+
+    caltechdata_edit(
+        record,
+        metadata=metadata,
+        token=token,
+        production=not test,
+        publish=True,
+    )
+
+    metadata = get_metadata(
+      record,
+      production=False,
+      validate=True,
+      emails=False,
+      schema="43",
+      token=False,
+      authors=False,
+  )
+    
+    return metadata
+
+
+    
 
 def match_cd_refs():
     token = os.environ["RDMTOK"]
